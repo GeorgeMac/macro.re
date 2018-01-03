@@ -4,7 +4,7 @@ build:
 
 .PHONY: release
 release: build
-	ls public
+	aws s3 sync --delete ./public s3://george.macro.re/
 
 .PHONY: docker-release
 docker-release: docker-build

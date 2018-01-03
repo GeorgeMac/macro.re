@@ -17,7 +17,12 @@ FROM alpine:3.6
 RUN \
   apk add --no-cache \
     dumb-init \
-    make
+    python \
+    python-dev \
+    py-pip \
+    build-base \
+    make && \
+    pip install awscli
 
 COPY --from=build /go/bin/hugo /bin/hugo
 
