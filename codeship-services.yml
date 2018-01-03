@@ -1,4 +1,4 @@
 hugo:
   build: .
-  cache: true
+  cached: true
   encrypted_env_file: env.encrypted
