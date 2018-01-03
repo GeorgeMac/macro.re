@@ -8,6 +8,8 @@ The clever peepz over at Moby are clearly hard at work revolutionising the way w
 
 > BuildKit is a toolkit for converting source code to build artifacts in an efficient, expressive and repeatable manner. [buildkit](https://github.com/moby/buildkit#buildkit)
 
+## What is BuildKit?
+
 In a nutshell BuildKit is an engine which interprets a graph of instructions into a target container image format. With the ability to target multiple export formats (e.g. OCI or docker), support multiple frontends (e.g. Dockerfile) and provide all sorts of wonderful features such as efficient layer caching and operation parallization.
 
 BuildKit is seperate from Docker and only requires a container runtime to facilitate the execution of operations to create image layers. The currently supported runtimes are `containerd` and plain old `runc`.
@@ -18,7 +20,9 @@ The BuildKit cli `buildctl` is configured to receive a graph based IR (intermedi
 
 It is the `llb` medium which facilitates BuildKits ability to have multiple frontends. There currently exists an experimental frontend for `Dockerfile`. I believe the intent of this project is to replace the current docker builder baked into the `docker` command.
 
-The BuildKit github project contains an `examples` folder with lots of Go binaries which spit protobuf encoded `llb` instructions, which can be piped into `buildctl`, examined and executed. I am going to walk through how this can be achieved on a mac.
+The BuildKit github project contains an `examples` folder with lots of Go binaries which spit protobuf encoded `llb` instructions which can be piped into `buildctl`, examined and then executed. I am going to walk through how this can be achieved on a mac.
+
+## Walkthrough
 
 To start with here is my setup:
 
@@ -66,7 +70,7 @@ Step two is to get into the BuildKit project itself, so that we can build it and
     cd $GOPATH/src/github.com/moby/buildkit
 
 Step three is to build the `buildctl` tool I described earlier. For this walkthrough I will not be building the daemon for mac, but instead I will run the daemon as a docker container in a later step.
-This make command will build a target binary into the local `./bin` directory, which is why we will refer to the binary as `./bin/buildctl-darwin` from here on out.
+This `make` command will build a target binary into the local `./bin` directory, which is why we will refer to the binary as `./bin/buildctl-darwin` from here on out.
 
     make bin/buildctl-darwin
 
@@ -79,8 +83,8 @@ This has been taken directly from the [Buildkit README](https://github.com/moby/
 
     buildctl build --help
 
-Now we can start playing with BuildKit. For the purpose of this walkthrough, we will use `examples/buildkit0`. The purpose of this example is to build `buildkit` itself along with `runc` and `containerd`.
-To understand we are going to use the `buildctl debug dump-llb` command to convert the `llb` protobuf into a more readible JSON array of layer operations. Then we pipe the JSON through `jq` to prettify.
+Now we can start playing with BuildKit. For the purpose of this walkthrough, we will use `examples/buildkit0`. The aim of this example is to build `buildkit` itself along with `runc` and `containerd`.
+To help us understand this, we are going to use the `buildctl debug dump-llb` command to convert the `llb` protobuf into a more readible JSON array of layer operations. Then we will pipe the JSON through `jq` to prettify.
 
     go run examples/buildkit0/buildkit.go | ./bin/buildctl-darwin debug dump-llb | jq '.'
 
@@ -211,7 +215,7 @@ e14e118cf849: Loading layer [==================================================>
 Loaded image: buildkit0:latest
 ```
 
-The majority of time spent was exporting the image thanks to the build cache. There is even handy output to show the cache hits, much like `docker build`.
+The majority of the time spent was exporting the image thanks to the build cache. There is even a handy output to show the cache hits, much like `docker build`.
 
 Now to be certain it all worked as expected, check your docker instance's image database.
 
@@ -221,7 +225,7 @@ Now to be certain it all worked as expected, check your docker instance's image 
     ...
     buildkit0    latest  efa327e9aeea  292 years ago  86.7MB
 
-You may be a little concerned how the image got created 292 years ago. However, you will find that is the product the date pretty printer being supplied with the epoch.
-It appears that at the time of writing this blog post, the docker exporter doesn't set the created at metadata on the docker image format.
+You may be a little concerned how the image got created 292 years ago. However, you will find that this is the product the date pretty-printer being supplied with the epoch.
+It appears that at the time of writing this blog post, the docker exporter doesn't set the `created_at` metadata on the docker image format.
 
 If this project interests you, I would recommend you start hacking on it.
