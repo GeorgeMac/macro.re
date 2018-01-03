@@ -1,0 +1,7 @@
+- name: build 
+  service: hugo 
+  command: "build"
+- name: release
+  tag: master
+  service: hugo
+  command: "release"
