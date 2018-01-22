@@ -1,0 +1,194 @@
+---
+title: "Defensive Concurrency in Go"
+date: 2018-01-21T15:43:31Z
+tags: ["go", "goroutines", "channels", "concurrency", "defensive programming"]
+draft: true
+---
+
+Before I get to deep in to the weeds of this post. I want to set some expectations.
+
+This is not an explanation of how to solve a well understood problem with a textbook solution. Nor is it necessarily the ideal solution to the problem itself.
+This solution is the product of avoiding scope creep and minimizing the surface area of a refactor.
+
+## Setting The Stage
+
+When I first drafted this blog post, this paragraph was as a drawn out tail of the original technical problem. It was a little over defensive and full of boring details. 
+
+Instead here is the gist of the problem and some context:
+
+1. A key component of a large codebase needs refactoring.
+2. This key components has a single function interface.
+3. The function takes a struct, which contains the attributes of a resource which needs to be "realized". Think of the type as a factory or constructor of things.
+4. The callers of this function will call concurrently. Often for the something already requested by other callers. Infact other callers could still be waiting on the same thing to be built, or could be long gone with the result they needed.
+5. We should only do the work of creating the resulting resource once per unique set of attributes.
+
+This blog post is not entirely concerned with addressing the first three points above. Instead it is focused on points number 4 and 5.
+How do we protect our single function type from concurrent callers, often requesting the same work or work that has already been done, in such a way that we only do work once per unique set of attributes?
+
+```go
+type Make struct {}
+
+func (m Make) Make(Attributes) (thing Thing, err error) {
+  // stuff happens and it could take a long time
+  return
+}
+```
+
+For illustration purposes, take the above type as being the solution to steps 1 through 3. The type takes some `Attributes` struct and realizes it as a `Thing` resource.
+The goal is to defend this type from greedy callers. Of course it goes without saying that it should all be easily unit testable as well.
+
+To simplify testing and to separate concerns, the solution presented will be defined as a decorator. Callers will instead communicate with a Go interface, rather than the concrete `Make` implementation.
+
+```go
+type Maker interface {
+    Make(Attributes) (Thing, error)
+}
+```
+
+The `Make` type satisfies this interface and so will the defensive implementation. However, the defensive implementation will wrap other implementations of the `Maker` interface and delegate down.
+
+```go
+type DefensiveMaker struct {
+    Maker
+}
+
+func (d DefensiveMaker) Make(attrs Attributes) (Thing, error) {
+    return d.Maker.Make(attrs)
+}
+```
+
+This will be the canvas for the eventual solution.
+
+Given greater scope this could be solved by addressing the access patterns of the callers described in point 4 above. However, as I have already mentioned, the solution I am going to describe is about solving this problem while minimizing the surface area of the change throughout the rest of the codebase.
+
+## A Solution
+
+Time for a little PseuGo code (Coining this now. You heard it here first)
+
+### Naive defensive approach 
+
+```go
+type result struct {
+    thing Thing
+    err   error
+}
+```
+
+1. Lock a mutex on every call to `Make(...)`
+2. Use the `Attributes` as a key in a map of already evaluated results
+3. If the attributes have already been evaluated return the "cached" result
+4. Otherwise, delegate the `Make(...)` call, save the result in the map and return it
+
+```go
+type DefensiveMaker struct {
+    Maker
+    mu sync.Mutex
+    results map[Attribute]result
+}
+
+func (d DefensiveMaker) Make(attrs Attributes) (Thing, error) {
+    d.mu.Lock()
+    defer d.mu.Unlock()
+
+    // has it been done already?
+    if res, ok := d.results[attrs]; ok {
+        // yeah, return the cached result
+        return res.thing, res.err
+    }
+
+    // not yet, do the real work
+    thing, err := d.Maker.Make(attrs)
+
+    // save the result
+    d.results[attrs] = result{thing, err}
+
+    return thing, err
+}
+```
+
+This does work. However, the impact of doing this leads to all calls to `Make(...)` becoming serialized. If `Make(...)` takes a long time, all other callers are blocked. The question is, is it possible to unblock callers requesting attributes which have not yet been requested?
+
+### A less "blocky" approach 
+
+```go
+type inflight struct {
+  ready chan struct{}
+  thing Thing
+  err   error
+}
+```
+
+1. On entry to `Make` lock a mutex
+2. Look up the `Attributes` in a `map[Attrubutes]*inflight` calls to see if this has been requested yet
+3. If it **has** already been requested:
+
+    i. unlock the mutex
+
+    ii. retrieve the `ready` channel stored on the inflight call struct
+
+    iii. receive on the `ready` channel until it unblocks
+
+    iv. return the `inflight.thing` and the `inflight.err` as the result of the call
+
+4. If it **has not** yet been requested:
+
+    i. first construct an `inflight{ready: make(chan struct{})}` struct with an unbuffered `ready` channel
+
+    ii. `defer` closing the ready channel to notify other callers for the same `Attributes` 
+
+    iii. store a pointer to the `inflight` struct in the map, using the `Attributes` as a key 
+
+    iv. unlock the mutex (now other callers can safely share `DefensiveMaker`)
+
+    v. do the real `Make(...)` call 
+
+    vi. capture the result on the originally constructed `inflight` pointer 
+
+The advantage of this approach is that the time spent holding the `Lock` (worst case) is limited to retrieval/storage in a map and construction of inflight type. Calls for resources already inflight, block on the `ready` channel until the first successful call for the same `Attributes` finishes. Results for the same `Attributes` are calculated once, but different results for different `Attributes` can be calculated concurrently.
+
+Let's see this in Go:
+
+```go
+type DefensiveMaker struct {
+    Maker
+
+    mu      sync.Mutex
+    results map[Attribute]*inflight
+}
+
+func (d DefensiveMaker) Make(attrs Attributes) (Thing, error) {
+    d.mu.Lock()
+
+    // has it been done already?
+    if res, ok := d.results[attrs]; ok {
+        // yeah, so don't hold up any other callers
+        // we can wait on the inflight ready channel
+        d.mu.Unlock()
+
+        // wait until result is ready
+        <-res.ready
+
+        // return the cached result
+        return res.thing, res.err
+    }
+
+    // construct an inflight to track the call against
+    inflight := inflight{ready: make(chan struct{})}
+
+    // defer closing ready channel to notify callers with the same attributes
+    defer close(inflight.ready)
+
+    // save the inflight call for others to get notified on
+    d.results[attrs] = &inflight
+
+    // unblock other callers
+    d.mu.Unlock()
+
+    // delegate to the embedded and save the result on the inflight 
+    inflight.thing, inflight.err = d.Maker.Make(attrs)
+
+    return inflight.thing, inflight.err 
+}
+```
+
+Now any implementation of the `Maker` interface can be decorated and protected against nasty, greedy callers. Ideally we would whip the callers in to shape and we wouldn't have to be so defensive. However, in the real world we don't always have the time or resources to undertake larger refactors like that. In the short term we can use the lovely Go concurrency primitives and libraries to keep our code safe! 
