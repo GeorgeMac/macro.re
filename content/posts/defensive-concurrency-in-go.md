@@ -118,7 +118,7 @@ type inflight struct {
 ```
 
 1. On entry to `Make` lock a mutex
-2. Look up the `Attributes` in a `map[Attrubutes]*inflight` calls to see if this has been requested yet
+2. Look up the `Attributes` in a `map[Attributes]*inflight` calls to see if this has been requested yet
 3. If it **has** already been requested:
 
     i. unlock the mutex
