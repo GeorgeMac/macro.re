@@ -4,6 +4,6 @@ ADD . /repo
 
 WORKDIR /repo
 
-RUN npm install
+RUN yarn install
 
-CMD ["npm", "test"]
+CMD ["yarn", "test"]
