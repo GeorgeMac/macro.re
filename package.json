@@ -1,0 +1,28 @@
+{
+  "name": "george.macro.re",
+  "version": "0.1.0",
+  "description": "https://george.macro.re blog",
+  "scripts": {
+    "test": "mdspell -rn 'content/**/*.md'",
+    "fix": "mdspell -n 'content/**/*.md'"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/georgemac/macro.re.git"
+  },
+  "keywords": [
+    "george",
+    "macrorie",
+    "golang",
+    "containers"
+  ],
+  "author": "George MacRorie",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/georgemac/macro.re/issues"
+  },
+  "homepage": "http://george.macro.re",
+  "dependencies": {
+    "markdown-spellcheck": "^1.0.0"
+  }
+}

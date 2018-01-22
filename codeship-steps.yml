@@ -1,6 +1,12 @@
-- name: build 
-  service: hugo 
-  command: "build"
+- name: validate
+  type: parallel
+  steps:
+    - name: build
+      service: hugo
+      command: "build"
+    - name: spellcheck
+      service: spellcheck
+      command: "npm test"
 - name: release
   tag: master
   service: hugo

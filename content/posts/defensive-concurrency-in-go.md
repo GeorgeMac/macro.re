@@ -2,7 +2,6 @@
 title: "Defensive Concurrency in Go"
 date: 2018-01-21T15:43:31Z
 tags: ["go", "goroutines", "channels", "concurrency", "defensive programming"]
-draft: true
 ---
 
 Before I get to deep in to the weeds of this post. I want to set some expectations.
@@ -19,7 +18,7 @@ Instead here is the gist of the problem and some context:
 1. A key component of a large codebase needs refactoring.
 2. This key components has a single function interface.
 3. The function takes a struct, which contains the attributes of a resource which needs to be "realized". Think of the type as a factory or constructor of things.
-4. The callers of this function will call concurrently. Often for the something already requested by other callers. Infact other callers could still be waiting on the same thing to be built, or could be long gone with the result they needed.
+4. The callers of this function will call concurrently. Often for the something already requested by other callers. In fact other callers could still be waiting on the same thing to be built, or could be long gone with the result they needed.
 5. We should only do the work of creating the resulting resource once per unique set of attributes.
 
 This blog post is not entirely concerned with addressing the first three points above. Instead it is focused on points number 4 and 5.

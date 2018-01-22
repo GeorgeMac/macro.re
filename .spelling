@@ -1,0 +1,33 @@
+# markdown-spellcheck spelling configuration file
+# Format - lines beginning # are comments
+# global dictionary is at the start, file overrides afterwards
+# one word per line, to define a file override use ' - filename'
+# where filename is relative to this configuration file
+struct
+mutex
+buildkit
+artifacts
+OCI
+frontends
+dockerfile
+cli
+protobuf
+STDIN
+frontend
+Github
+walkthrough
+STDOUT
+ - content/posts/defensive-concurrency-in-go.md
+4
+5
+1
+3
+PseuGo
+i
+vi
+inflight
+ - content/posts/getting-started-with-buildkit.md
+peepz
+Walkthrough
+tonistiigi
+292

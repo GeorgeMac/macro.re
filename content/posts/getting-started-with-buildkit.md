@@ -10,17 +10,17 @@ The clever peepz over at Moby are clearly hard at work revolutionising the way w
 
 ## What is BuildKit?
 
-In a nutshell BuildKit is an engine which interprets a graph of instructions into a target container image format. With the ability to target multiple export formats (e.g. OCI or docker), support multiple frontends (e.g. Dockerfile) and provide all sorts of wonderful features such as efficient layer caching and operation parallization.
+In a nutshell BuildKit is an engine which interprets a graph of instructions into a target container image format. With the ability to target multiple export formats (e.g. OCI or docker), support multiple frontends (e.g. Dockerfile) and provide all sorts of wonderful features such as efficient layer caching and operation parallelization.
 
-BuildKit is seperate from Docker and only requires a container runtime to facilitate the execution of operations to create image layers. The currently supported runtimes are `containerd` and plain old `runc`.
+BuildKit is separate from Docker and only requires a container runtime to facilitate the execution of operations to create image layers. The currently supported runtime's are `containerd` and plain old `runc`.
 
 The BuildKit project itself consists of two key components. The first being the build daemon `buildkitd`. The second being a cli tool called `buildctl` which is used to facilitate command line communication with the `buildkitd` instance.
 
 The BuildKit cli `buildctl` is configured to receive a graph based IR (intermediate representation) of operations. This IR is called `llb` which stands for `low-level builder`. This format is defined in the BuildKit project using protobuf. The `buildctl` command itself expects an `llb` to be marshalled in this format on STDIN. Currently there are some handy Go libraries for describing and marshalling an `llb` to an `io.Writer`. However, since the format is protobuf it will be really easy to port `llb` generating code to other languages. As a die hard gopher myself though, I am fortunate enough to be able to start hacking on this right away.
 
-It is the `llb` medium which facilitates BuildKits ability to have multiple frontends. There currently exists an experimental frontend for `Dockerfile`. I believe the intent of this project is to replace the current docker builder baked into the `docker` command.
+It is the `llb` medium which facilitates BuildKit's ability to have multiple frontends. There currently exists an experimental frontend for `Dockerfile`. I believe the intent of this project is to replace the current docker builder baked into the `docker` command.
 
-The BuildKit github project contains an `examples` folder with lots of Go binaries which spit protobuf encoded `llb` instructions which can be piped into `buildctl`, examined and then executed. I am going to walk through how this can be achieved on a mac.
+The BuildKit Github project contains an `examples` folder with lots of Go binaries which spit protobuf encoded `llb` instructions which can be piped into `buildctl`, examined and then executed. I am going to walk through how this can be achieved on a mac.
 
 ## Walkthrough
 
@@ -84,7 +84,7 @@ This has been taken directly from the [Buildkit README](https://github.com/moby/
     buildctl build --help
 
 Now we can start playing with BuildKit. For the purpose of this walkthrough, we will use `examples/buildkit0`. The aim of this example is to build `buildkit` itself along with `runc` and `containerd`.
-To help us understand this, we are going to use the `buildctl debug dump-llb` command to convert the `llb` protobuf into a more readible JSON array of layer operations. Then we will pipe the JSON through `jq` to prettify.
+To help us understand this, we are going to use the `buildctl debug dump-llb` command to convert the `llb` protobuf into a more readable JSON array of layer operations. Then we will pipe the JSON through `jq` to prettify.
 
     go run examples/buildkit0/buildkit.go | ./bin/buildctl-darwin debug dump-llb | jq '.'
 
