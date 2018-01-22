@@ -2,3 +2,6 @@ hugo:
   build: .
   cached: true
   encrypted_env_file: env.encrypted
+spellcheck:
+  build:
+    dockerfile_path: spelling.Dockerfile
