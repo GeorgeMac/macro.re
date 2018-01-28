@@ -1,4 +1,4 @@
-baseurl = "http://george.macro.re"
+baseurl = "https://george.macro.re"
 languageCode = "en-gb"
 title = "George"
 theme = "hucore"
