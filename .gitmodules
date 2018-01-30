@@ -1,0 +1,3 @@
+[submodule "themes/hucore"]
+	path = themes/hucore
+	url = git@github.com:GeorgeMac/hucore.git
