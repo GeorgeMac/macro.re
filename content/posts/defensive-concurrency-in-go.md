@@ -9,6 +9,8 @@ Before I get to deep in to the weeds of this post. I want to set some expectatio
 This is not an explanation of how to solve a well understood problem with a textbook solution. Nor is it necessarily the ideal solution to the problem itself.
 This solution is the product of avoiding scope creep and minimizing the surface area of a refactor.
 
+> UPDATE: I found this very implementation in the http://gopl.io Donovan / Kernighan book. So perhaps it is a textbook solution to a well understood problem. Go figure. See the [implementation](https://github.com/adonovan/gopl.io/blob/master/ch9/memo4/memo.go) here.
+
 ## Setting The Stage
 
 When I first drafted this blog post, this paragraph was as a drawn out tail of the original technical problem. It was a little over defensive and full of boring details. 
