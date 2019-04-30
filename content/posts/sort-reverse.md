@@ -89,3 +89,19 @@ func reverseDomain(domain string) string {
 	return strings.Join(s, ".")
 }
 ```
+
+## UPDATE
+
+[@arussellsaw](https://twitter.com/arussellsaw) just pointed out a neat little solution which does use `sort.Slice`:
+
+```go
+func reverseDomain(domain string) string {
+	s := strings.Split(domain, ".")
+	sort.Slice(s, func(i, j int) bool {
+		return i > j
+	})
+	return strings.Join(s, ".")
+}
+```
+
+This compares the indexes rather than the values, which means the result of calling `sort.Slice` is it just reverses the order of the contents. Nice!
