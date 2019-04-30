@@ -2,7 +2,6 @@
 title: "sort.Reverse"
 date: 2019-04-30T15:11:51+01:00
 tags: ["go", "sort", "naming"]
-draft: true
 ---
 
 I recently edited my first wikipedia entry. I was learning about how Google indexes websites with BigQuery and stumbled across the page for [reverse domain name notation](https://en.wikipedia.org/w/index.php?title=Reverse_domain_name_notation&action=submit). It makes sense when creating and index of URLs to do so in reverse domain order. This is the process of flipping the constituent parts of a URL like so: `www.google.com` becomes `com.google.www` and `george.macro.re` becomes `ro.macro.george` and so on.
