@@ -17,6 +17,9 @@ frontend
 Github
 walkthrough
 STDOUT
+kernighan
+wikipedia
+bigquery
  - content/posts/defensive-concurrency-in-go.md
 4
 5
@@ -31,3 +34,5 @@ peepz
 Walkthrough
 tonistiigi
 292
+ - content/posts/sort-reverse.md
+unexported
