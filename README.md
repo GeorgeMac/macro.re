@@ -1,7 +1,7 @@
 [george.macro.re](https://george.macro.re) blog
 -----------------------------------------------
 
-[ ![Codeship Status for GeorgeMac/macro.re](https://app.codeship.com/projects/885df230-d2d9-0135-6b51-4e4bfbb1346d/status?branch=master)](https://app.codeship.com/projects/262666)
+[![Netlify Status](https://api.netlify.com/api/v1/badges/fbfec2ae-a525-477e-ab5a-10aa8f190127/deploy-status)](https://app.netlify.com/sites/amazing-lalande-d0b3b4/deploys)
 
 This is my hugo generated blog
 

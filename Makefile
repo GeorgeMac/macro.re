@@ -1,18 +1,13 @@
 .PHONY: build
-build:
+build: spellcheck
 	hugo
 
 .PHONY: spellcheck
-spellcheck:
+spellcheck: npm-install
 	npm test
 
-.PHONY: release
-release: build
-	aws s3 sync --acl public-read ./public s3://george.macro.re/
-
-.PHONY: docker-release
-docker-release: docker-build
-	docker run -v `pwd`:/site georgemac/hugo release
+npm-install:
+	npm install
 
 .PHONY: docker
 docker: docker-build
