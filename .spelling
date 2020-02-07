@@ -20,6 +20,9 @@ STDOUT
 kernighan
 wikipedia
 bigquery
+variadic
+unexported
+timestamp
  - content/posts/defensive-concurrency-in-go.md
 4
 5
@@ -37,3 +40,6 @@ tonistiigi
  - content/posts/sort-reverse.md
 arussellsaw
 unexported
+ - content/posts/hidden-options.md
+thing.go
+thing_test.go
