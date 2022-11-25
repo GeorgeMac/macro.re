@@ -6,6 +6,8 @@ tags: ["go", "errors", "error-handling", "generics"]
 
 I'm sure someone out there has already thought of this. But I stumbled on it when looking at `errors.As` statements in a contribution I was making to [Flipt](https://github.com/flipt-io/flipt).
 
+> UPDATE: I found an existing proposal to add this to the standard library and in there it appears this was called out in the generic design proposal itself: https://github.com/golang/go/issues/51945.
+
 ## TL;DR
 
 This function is handy for brevity and to avoid a potential runtime panic:
