@@ -23,6 +23,7 @@ bigquery
 variadic
 unexported
 timestamp
+flipt
  - content/posts/defensive-concurrency-in-go.md
 4
 5
@@ -43,3 +44,6 @@ unexported
  - content/posts/hidden-options.md
 thing.go
 thing_test.go
+ - content/posts/generic-errors-as.md
+TL
+errors.As

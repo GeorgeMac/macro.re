@@ -4,7 +4,7 @@ date: 2022-11-25T10:35:00+00:00
 tags: ["go", "errors", "error-handling", "generics"]
 ---
 
-Im sure someone out there has already thought of this. But I stumbled on it when looking at `errors.As` statements in a contribution I was making to [Flipt](https://github.com/flipt-io/flipt).
+I'm sure someone out there has already thought of this. But I stumbled on it when looking at `errors.As` statements in a contribution I was making to [Flipt](https://github.com/flipt-io/flipt).
 
 ## TL;DR
 
@@ -209,4 +209,4 @@ func main() {
 }
 ```
 
-This compiles and prints `Does not match`. Because it is `*MyError` which is returned, and not `MyError`. This is an easy mistake to make. Sadly I think this is unnavoidable.
+This compiles and prints `Does not match`. Because it is `*MyError` which is returned, and not `MyError`. This is an easy mistake to make. Sadly I think this is unavoidable.
