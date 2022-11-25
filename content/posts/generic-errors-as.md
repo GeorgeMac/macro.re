@@ -53,9 +53,11 @@ The root of the error was a MyError type: my error
 ```
 
 Note that in `main()` we first define the variable and type we're interested in.
-Then on the subsequent line we call `errors.As` and create and pass it a pointer to that variable.
+Then on the subsequent line we create a pointer to this variable and pass it to `errors.As`.
 
-Secondly, there are hazards if your custom error is implemented on a pointer to a type.
+The ergonomics are not great here.
+
+However, there are also hazards if your custom error is implemented on a pointer to a type.
 
 ```go
 type MyError struct {
