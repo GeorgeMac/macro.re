@@ -7,3 +7,8 @@ public/
 node_modules/
 
 logs/
+
+.next/
+
+# Local Netlify folder
+.netlify

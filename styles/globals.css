@@ -1,0 +1,26 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body {
+  min-height: 100vh;
+  background: rgb(247, 254, 231);
+}
+
+pre > code {
+  background: none !important;
+}
+
+*:not(pre) > code {
+  background: rgba(252, 231, 243, 0.7);
+  padding: 0.2rem;
+  border-radius: .2rem;
+}
+
+ol > li > p {
+  display: inline-block;
+}
+
+.font-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
