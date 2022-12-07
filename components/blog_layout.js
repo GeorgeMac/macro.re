@@ -33,7 +33,7 @@ const P = (props) => (
 )
 
 const Pre = (props) => (
-  <pre className="mb-4 bg-pink-100/70 p-4 rounded-md max-w-6xl" {...props}>{props.children}</pre>
+  <pre className="mb-4 bg-pink-100/70 p-4 rounded-md" {...props}>{props.children}</pre>
 )
 
 const Code = (props) => (

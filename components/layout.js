@@ -22,7 +22,7 @@ export default function Layout({ children }) {
           <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.4.0/styles/base16/github.min.css" />
         </Head>
 
-        <main className="container mx-auto flex flex-col justify-left p-10">
+        <main className="container mx-auto flex flex-col justify-left p-10 max-w-6xl">
           <div className="flex-row pb-8">
             <h1 className="text-left text-4xl">
               <a href="/">
