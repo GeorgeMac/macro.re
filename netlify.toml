@@ -2,8 +2,8 @@
   command = "npm run build"
   publish = ".next"
 
-#[[plugins]]
-#  package = "netlify-plugin-cypress"
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
 
 ## Learn more about redirects here
 ## https://docs.netlify.com/routing/redirects/#syntax-for-the-netlify-configuration-file
