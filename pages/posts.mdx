@@ -9,7 +9,7 @@ export default function Blog({ posts }) {
         const path = `/posts/${post.name}`
         const date = new Date(post.meta.date)
         return <li key={post.name}>
-          <span className="font-mono mr-2 text-black/60">{date.toLocaleDateString('en-GB')}</span>
+          <span className="mr-3 font-mono text-black/60">{date.toLocaleDateString('en-GB')}</span>
           <a href={path}>
             {post.meta.title} 
           </a>
