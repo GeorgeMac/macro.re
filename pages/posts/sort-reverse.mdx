@@ -1,10 +1,12 @@
----
-title: "sort.Reverse"
-date: 2019-04-30T15:11:51+01:00
-tags: ["go", "sort", "naming"]
----
+import { BlogLayout } from '../../components/blog_layout'
 
-I recently edited my first wikipedia entry. I was learning about how Google indexes websites with BigQuery and stumbled across the page for [reverse domain name notation](https://en.wikipedia.org/w/index.php?title=Reverse_domain_name_notation&action=submit). It makes sense when creating and index of URLs to do so in reverse domain order. This is the process of flipping the constituent parts of a URL like so: `www.google.com` becomes `com.google.www` and `george.macro.re` becomes `ro.macro.george` and so on.
+export const meta = {
+  title: "sort.Reverse",
+  date: '2019-04-30T15:11:51+01:00',
+  tags: ["go", "sort", "naming"]
+}
+
+I recently edited my first wikipedia entry. I was learning about how Google indexes websites with BigQuery and stumbled across the page for [reverse domain name notation](https://en.wikipedia.org/w/index.php?title=Reverse_domain_name_notation&action=submit). It makes sense when creating and index of URLs to do so in reverse domain order. This is the process of flipping the constituent parts of a URL like so: `www.google.com` becomes `com.google.www` and `george.macro.re` becomes `re.macro.george` and so on.
 
 I was delighted to see all examples of reversing a list in different programming languages. So I quickly scrolled to my language of choice Go to check out the suggestion.
 
@@ -28,7 +30,7 @@ So my first gut instinct was perhaps they just need to drop the `sort.Sort` and 
 
 Well that is not actually the case. Looking closer at the [documentation](https://golang.org/pkg/sort/#Reverse):
 
-```
+```go
 func Reverse(data Interface) Interface
 Reverse returns the reverse order for data.
 ```
@@ -105,3 +107,5 @@ func reverseDomain(domain string) string {
 ```
 
 This compares the indexes rather than the values, which means the result of calling `sort.Slice` is it just reverses the order of the contents. Nice!
+
+export default ({ children }) => <BlogLayout meta={meta}>{children}</BlogLayout>

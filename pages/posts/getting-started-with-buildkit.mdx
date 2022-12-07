@@ -1,8 +1,10 @@
----
-title: "Getting Started With BuildKit"
-date: 2018-01-02T11:51:26Z
-tags: ["buildkit", "docker", "go", "containers", "moby"]
----
+import { BlogLayout } from '../../components/blog_layout'
+
+export const meta = {
+  title: "Getting Started With BuildKit",
+  date: "2018-01-02T11:51:26Z",
+  tags: ["buildkit", "docker", "go", "containers", "moby"]
+}
 
 The clever peepz over at Moby are clearly hard at work revolutionising the way we work with containers and images. I have recently been interested in the [BuildKit](github.com/moby/buildkit) project.
 
@@ -229,3 +231,5 @@ You may be a little concerned how the image got created 292 years ago. However, 
 It appears that at the time of writing this blog post, the docker exporter doesn't set the `created_at` metadata on the docker image format.
 
 If this project interests you, I would recommend you start hacking on it.
+
+export default ({ children }) => <BlogLayout meta={meta}>{children}</BlogLayout>

@@ -1,8 +1,11 @@
----
-title: "Defensive Concurrency in Go"
-date: 2018-01-21T15:43:31Z
-tags: ["go", "goroutines", "channels", "concurrency", "defensive programming"]
----
+import { BlogLayout } from '../../components/blog_layout'
+
+export const meta = {
+  title: 'Defensive Concurrency in Go',
+  date: '2018-01-21T15:43:31Z',
+  author: 'George MacRorie',
+  tags: ['go', 'goroutines', 'channels', 'concurrency', 'defensive programming']
+}
 
 Before I get to deep in to the weeds of this post. I want to set some expectations.
 
@@ -119,31 +122,21 @@ type inflight struct {
 }
 ```
 
-1. On entry to `Make` lock a mutex
-2. Look up the `Attributes` in a `map[Attributes]*inflight` calls to see if this has been requested yet
+1. On entry to `Make` lock a mutex.
+2. Look up the `Attributes` in a `map[Attributes]*inflight` calls to see if this has been requested yet.
 3. If it **has** already been requested:
-
-    i. unlock the mutex
-
-    ii. retrieve the `ready` channel stored on the inflight call struct
-
-    iii. receive on the `ready` channel until it unblocks
-
-    iv. return the `inflight.thing` and the `inflight.err` as the result of the call
+    1. unlock the mutex.
+    2. retrieve the `ready` channel stored on the inflight call struct.
+    3. receive on the `ready` channel until it unblocks.
+    4. return the `inflight.thing` and the `inflight.err` as the result of the call.
 
 4. If it **has not** yet been requested:
-
-    i. first construct an `inflight{ready: make(chan struct{})}` struct with an unbuffered `ready` channel
-
-    ii. `defer` closing the ready channel to notify other callers for the same `Attributes` 
-
-    iii. store a pointer to the `inflight` struct in the map, using the `Attributes` as a key 
-
-    iv. unlock the mutex (now other callers can safely share `DefensiveMaker`)
-
-    v. do the real `Make(...)` call 
-
-    vi. capture the result on the originally constructed `inflight` pointer 
+    1. first construct an `inflight{ready: make(chan struct{})}` struct with an unbuffered `ready` channel.
+    2. `defer` closing the ready channel to notify other callers for the same `Attributes`.
+    3. store a pointer to the `inflight` struct in the map, using the `Attributes` as a key. 
+    4. unlock the mutex (now other callers can safely share `DefensiveMaker`).
+    5. do the real `Make(...)` call.
+    6. capture the result on the originally constructed `inflight` pointer.
 
 The advantage of this approach is that the time spent holding the `Lock` (worst case) is limited to retrieval/storage in a map and construction of inflight type. Calls for resources already inflight, block on the `ready` channel until the first successful call for the same `Attributes` finishes. Results for the same `Attributes` are calculated once, but different results for different `Attributes` can be calculated concurrently.
 
@@ -193,3 +186,5 @@ func (d DefensiveMaker) Make(attrs Attributes) (Thing, error) {
 ```
 
 Now any implementation of the `Maker` interface can be decorated and protected against nasty, greedy callers. Ideally we would whip the callers in to shape and we wouldn't have to be so defensive. However, in the real world we don't always have the time or resources to undertake larger refactors like that. In the short term we can use the lovely Go concurrency primitives and libraries to keep our code safe! 
+
+export default ({ children }) => <BlogLayout meta={meta}>{children}</BlogLayout>

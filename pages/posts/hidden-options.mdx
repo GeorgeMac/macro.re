@@ -1,8 +1,10 @@
----
-title: "Hidden Options for Testing"
-date: 2020-01-07T14:24:51+00:00
-tags: ["go", "testing", "functional options"]
----
+import { BlogLayout } from '../../components/blog_layout'
+
+export const meta = {
+  title: "Hidden Options for Testing",
+  date: "2020-01-07T14:24:51+00:00",
+  tags: ["go", "testing", "functional options"],
+}
 
 > I am uncertain this is a good idea, but I am experimenting with it.
 
@@ -192,3 +194,5 @@ Within test compiled code the external packages can access the custom option as 
 [1]: https://dave.cheney.net/2014/10/17/functional-options-for-friendly-apis "Functional Options For Friendly APIs"
 [2]: https://gobyexample.com/variadic-functions "Variadic Functions in Go"
 [3]: https://segment.com/blog/5-advanced-testing-techniques-in-go/#use-a-separate-test-package "Segment Blog: Use A Seperate Test Package"
+
+export default ({ children }) => <BlogLayout meta={meta}>{children}</BlogLayout>

@@ -1,0 +1,31 @@
+import fs from 'fs'
+import path from 'path'
+import dynamic from 'next/dynamic'
+
+export default function Blog({ posts }) {
+  return (
+    <ul>
+      {posts && posts.map((post) => {
+        const path = `/posts/${post.name}`
+        const date = new Date(post.meta.date)
+        return <li key={post.name}>
+          <span className="font-mono mr-2 text-black/60">{date.toLocaleDateString('en-GB')}</span>
+          <a href={path}>
+            {post.meta.title} 
+          </a>
+        </li>
+      })}
+    </ul>
+  )
+}
+
+export async function getStaticProps() {
+  const dir = path.join(process.cwd(), 'pages', 'posts')
+  const posts = (await Promise.all(fs.readdirSync(dir).map(async (file) => {
+    if (!file.endsWith('.mdx')) return;
+    const post = await import(`pages/posts/${file}`)
+    return { name: path.parse(file).name, meta: post.meta }
+  }))).filter((file) => file).sort((a, b) => (new Date(b.meta.date) - new Date(a.meta.date)))
+
+  return { props: { posts: posts } }
+}
