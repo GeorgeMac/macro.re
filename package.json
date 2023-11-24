@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "pnpm install --no-frozen-lockfile && npx playwright install --with-deps chromium && next build",
+    "build": "npm install --no-frozen-lockfile && npx playwright install --with-deps chromium && next build",
     "start": "next start",
     "lint": "next lint"
   },
