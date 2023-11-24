@@ -1,4 +1,5 @@
 import '../styles/globals.css'
+import '../styles/base16-ashes.css'
 
 import Layout from '../components/layout'
 import type { AppProps } from 'next/app'
