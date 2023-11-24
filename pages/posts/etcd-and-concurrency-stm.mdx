@@ -1,0 +1,348 @@
+import { BlogLayout } from '../../components/blog_layout'
+
+export const meta = {
+  title: 'Etcd and concurrency.STM',
+  date: '2023-11-23T12:00:00Z',
+  author: 'George MacRorie',
+  tags: ['etcd', 'go', 'raft', 'stm'],
+}
+
+This blog post explores a little bit of raft, etcd, Go and the horrible rakes we walked into during my time at InfluxData.
+After taking some time to better understand some of the core concepts under etcd, I've finally got my head around an issue I opened that never got any attention, but that sat in my subconscious unsolved (at-least from my own understanding perspective).
+
+## Where we're going, we don't need consistency.
+
+Back in 2020 I was working at InfluxData on their (then latest) cloud platform.
+This platform was managed and intended to be a "scales automatically based on your usage" type system.
+
+We heavily leveraged Go and [etcd](https://etcd.io/) to build some of the backing metadata components of our cloud version of InfluxDB.
+InfluxDB Cloud 2 (as it was known back then) was originally forked from the open-source codebase, however, it was considerably cannibalised and re-implemented particularly around this time (2022).
+The goal of these changes made internally was to decompose InfluxDB open-source into separate services we could iterate on and scale independently.
+
+That said, it came with a lot of the abstractions originally set down in InfluxDB v2 OSS.
+In particular, we leveraged an internal key-value store abstraction based on BoltDB.
+This abstraction lives on today in the open-source [InfluxDB v2 branch](https://github.com/influxdata/influxdb/blob/306215dd186bb10752db722da9e0b53608dcf7a1/kv/store.go#L44-L60) (my grubby little hands are still all over it).
+In the open-source version of Influx we leveraged BoltDB directly behind this abstraction.
+
+In our cloud product we had an alternative implementation which was instead backed by etcd.
+This allowed us to horizontally scale replicas of the services we had broken off of the original InfluxDB implementation.
+The `kv.Store` abstraction we had to work with, provided a functional transaction interface.
+You provide a function, the runtime provides a client on which to performance `Get` and `Put` operations.
+The runtime then provides some guarantees around transactionality for the lifetime of the function call.
+
+This particular transaction interface is quite a bit disconnected from how transactions look on the etcd API itself.
+Etcd supports (as they call it) ["mini-transactions"](https://etcd.io/docs/v3.5/learning/api/#transaction) in a single RPC call.
+In order to map the experience we wanted in code onto the etcd RPC API, we leveraged an implementation of [software-transactional memory](https://en.wikipedia.org/wiki/Software_transactional_memory) (STM).
+The STM we leveraged is actually an implementation [directly available (to this day) in the etcd codebase](https://github.com/etcd-io/etcd/blob/b17c1de30c96a4bd90f14d52047d298551dc4ba5/client/v3/concurrency/stm.go#L24-L39).
+
+## Back to the future revision.
+
+For a while, everything we were doing was _OK_. I say OK because we had plenty of issues building features on top of these constructs.
+However, they weren't necessarily _all_ outage level defects, only some.
+
+We had built a bunch of abstractions around storing more document like structures in etcd through this store abstraction. Along the way we added a bunch of features to create and manage things like secondary indexes and migrations.
+
+However, one day (around September 2020) SRE made an observation about how we were communicating between our applications, and our instances of etcd.
+They noted our application instances were doing a single DNS round-robbin to discover a random etcd replica, then for the lifetime of that instance they would only communicate with that single replica. This meant that sometimes we would get into a situation where the traffic volume on our replicas was not balanced. 
+
+Etcd uses gRPC for communication, and their client had easy to configure support to leverage a custom etcd client-side load balancing strategy. SRE did the work to leverage this, with the goal of more even distribution of traffic to etcd.
+
+The change was tested in a non-production environment, but guess what, the workloads there weren't quite as representative of production as one would've hoped. So the change passed with flying colours and ultimately made it to production.
+
+```
+mvcc: required revision is a future revision
+```
+
+We quickly found this particular error message popping up all over the place.
+The API was soon returning 500s and our internal task scheduling system was backing up fast.
+It didn't take long for the platform to take a nose dive and a _sev 1_ incident was declared.
+
+Fortunately, we were seasoned enough to know it was probably our own faults, so the recent changes were reverted quickly.
+Peace was restored and we went back to the drawing board.
+
+A quick GitHub search turned up this (then) [3 month old issue](https://github.com/etcd-io/etcd/issues/11963).
+This issue pointed the finger at the STM code we were also using from the etcd codebase.
+It was comforting to see we probably had the smoking gun.
+However, roll on December and the issue was closed because it had become stale.
+
+## If My Calculations Are Correct
+
+The original issue, referenced above, points directly at the root cause of the problem.
+In the STM, there is an assumption which falls flat on its face when used in conjunction with client-side load balancing.
+
+To understand the assumption, it helps to first get an understanding of how the STM works in the first place.
+
+
+
+The STM interface looks like this:
+
+```go
+// STM is an interface for software transactional memory.
+type STM interface {
+	// Get returns the value for a key and inserts the key in the txn's read set.
+	// If Get fails, it aborts the transaction with an error, never returning.
+	Get(key ...string) string
+	// Put adds a value for a key to the write set.
+	Put(key, val string, opts ...v3.OpOption)
+	// Rev returns the revision of a key in the read set.
+	Rev(key string) int64
+	// Del deletes a key.
+	Del(key string)
+
+	// commit attempts to apply the txn's changes to the server.
+	commit() *v3.TxnResponse
+	reset()
+}
+```
+
+This type allows us to get, put, delete and check the revision of keys during the lifetime of the transaction.
+When you create an STM, it has a configurable isolation level and by default (when calling `concurrency.NewSTM`) this level is set to the highest isolation level, _serializeable snapshot_.
+
+```go
+	// SerializableSnapshot provides serializable isolation and also checks
+	// for write conflicts.
+	SerializableSnapshot Isolation = iota
+```
+
+Remember I mentioned that etcd supports (in their words) "mini-transactions".
+Etcd has no concept of sessions or transactions that span multiple RPC calls.
+The gRPC interface exposed has support for `range`, `put`, `delete` and `txn` methods.
+
+The `txn` RPC call is actually just a single RPC call with an `if ([]cond) then ([]ops) else ([]ops)` structure.
+If all the conditions of your transaction hold true, then the `then` operations execute, otherwise, the `else` operations execute.
+The kinds of conditions supported are e.g. equality or boundary comparisons on a particular keys value, as well as asserting that a key has or hasn't been modified since some revision. 
+
+The caller has to know all of the conditions ahead of making this single RPC call.
+Being able to make comparison on e.g. a keys last modified revision, allows the caller to create some guarantees between RPC calls during a transactions condition checks.
+For example, only do the following operations (e.g. put foo=bar) if key baz has not been modified (mod revision == some revision number we previously observed).
+
+If the conditions resolve to `false`, the `else` operations are performed and the resulting transaction response has a boolean saying that it did not succeed.
+This isn't an error condition, it is just that the conditions did not hold `true` at etcd's revision when applied to the replication log.
+
+The STM code takes advantage of this to ensure there are no write conflicts (as mentioned in the isolation level description).
+When you call `Put` or `Delete` on the `STM` interface, it doesn't actually perform those calls inline.
+It instead caches the operation in memory, and is quietly building a transaction call which is only submitted when you return from the function.
+
+After the function you supply returns, the STM code will submit a transaction with conditions regarding the keys interacted with during the transaction.
+This is to ensure they have not been modified during the transaction.
+If they have not been modified, the `then` clause is executed and your `Put` and `Delete` operations are submitted to the store.
+However, if the transaction returns unsuccessful, the STM code will actually retry your entire function again with a fresh slate.
+
+```go
+		var out stmResponse
+		for {
+			s.reset()
+			if out.err = apply(s); out.err != nil {
+				break
+			}
+			if out.resp = s.commit(); out.resp != nil {
+				break
+			}
+		}
+		outc <- out
+```
+> Your function is called [in a retry loop](https://github.com/etcd-io/etcd/blob/82fe457b298433f6e3b5d8852927e50e091a465a/client/v3/concurrency/stm.go#L153-L163)
+
+So **be aware readers** that your function call better be idempotent. Because it can and will be retried until the transaction condition holds true (or a non-nil error is returned).
+
+However, to get back to the point of all this, lets look at a small contrived example containing only two calls to `Get` during a transaction:
+
+```go
+func getSomeKeys(client *etcdv3.Client) error {
+    var valOne, valTwo string
+    _, err := concurrency.NewSTM(client, func(s STM) error {
+        valOne = s.Get("keyOne")
+        valTwo = s.Get("keyTwo")
+        return nil
+    })
+
+    fmt.Println(valOne, valTwo)
+
+    return err
+}
+```
+
+This function is supplied with an implementation of the `concurrency.STM` interface we just learnt about.
+It then gets two keys `"keyOne"` and `"keyTwo"` via the STM.
+
+> this happens to be all you need to tickle the bug we observed in production
+
+Now we can zoom in a little and look at how the STM code behaves when you attempt to read a keys value.
+In particular, we're going to zoom into the assumption I eluded to earlier.
+You see, the STM attempts to make (what I have come to assume is) an optimization.
+
+The first time you call `Get` (read a value) the STM will actually capture the returned values store revision number.
+This is the logical offset of the underlying stores revision at the time of the read.
+It then predicates **all subsequent reads** with this revision offset.
+This ensures that the reads in the transaction all come from the same snapshot of etcd state (serialized snapshot isolation).
+
+However, they also sneak in one little extra cheeky predicate `WithSerializable()`.
+
+```go
+if firstRead {
+	// txn's base revision is defined by the first read
+	s.getOpts = []v3.OpOption{
+		v3.WithRev(resp.Header.Revision),
+		v3.WithSerializable(),
+	}
+}
+```
+
+> Sneaky [little optimization](https://github.com/etcd-io/etcd/blob/82fe457b298433f6e3b5d8852927e50e091a465a/client/v3/concurrency/stm.go#L322-L326)
+
+The STM code relaxes the isolation level of subsequent reads after the first read made during the transaction.
+What this option does is tell etcd that the rest of the reads can skip gaining consensus on the state of the world.
+Instead, just read the state of the world for the explicitly identified snapshot at the revision supplied.
+
+Now this is fine given the _entire set of RPCs for the transaction_ is occurring on a single replica of etcd.
+It works because the first read will return from the replica, ensuring that the replica requested has caught up to the revision returned in the response (reads are linearized by default).
+Then all subsequent reads on this same replica can safely reference this revision offset.
+
+```
+BEGIN
+GET "keyOne"              // --> goes to replica ONE (returns rev 1)
+GET "keyTwo" (with rev 1) // --> goes to replica ONE
+END
+```
+
+However, when you enable client-side load-balancing, you put all requests to the client into a round-robbin across all the etcd replicas in the cluster.
+This includes each read call inside a single STM function calls lifetime.
+
+```
+BEGIN
+GET "keyOne"              // --> goes to replica ONE (returns rev 1)
+GET "keyTwo" (with rev 1) // --> goes to replica TWO
+END
+```
+
+When we saw the future revision error appearing in our system, we were seeing reads attempting to reference a revision in the future.
+This is because these were the subsequent serialized reads being performed on different replicas from the first read in the transaction.
+
+You can actually make this error disappear by deleting the option `WithSerializable()` being passed in the STM.
+
+## Whoa. This is Heavy.
+
+So we know the root cause. You can't trust the revision returned for a linearized read to be one which has been reached by **all** replicas in the cluster.
+
+I'm sure for a lot of folks out there who are familiar with Raft and consensus, this probably seems rather reasonable.
+At the time, I was a bit bamboozled by this.
+I could see this the behaviour being exhibited, however, I didn't understand why the concurrency STM appeared to continue making this incorrect assumption.
+
+Part of me wondered whether there was a bug, and the first read should only return the most up to date revision for **all** cluster members (this is not a bug).
+Alternatively, maybe the etcd team just haven't gotten around to internalizing this combination of the STM with client-side load-balancing.
+So, unsatisfied and armed with my poor understanding of how it all appeared to work, I set out to implement a small replication and open a [new issue for the same problem](https://github.com/etcd-io/etcd/issues/12561).
+I mostly wanted clarification on my (mis)assumptions and the assumptions of the STM code, and how they felt this code should be handled (maybe it needs a warning not to use it with client-side load-balancing). 
+
+Sadly, the issue I opened ultimately became stale and was automatically closed with no reply 6 months later.
+It was briefly re-opened by a core maintainer in November 2021 and then it went stale and closed again.
+I never did find out why that happened.
+
+## Better get used to these bars, Kid.
+
+So what was happening here?
+
+I was recently reading Phil Eaton's awesome blog post on [Implementing the Raft distributed consensus protocol in Go](https://notes.eatonphil.com/2023-05-25-raft.html), when it started to click for me.
+
+> But the only [_correct_ way to read from a Raft cluster](https://github.com/etcd-io/etcd/issues/741) is to pass the read through the log replication too.
+
+This statement from the post links to an issue in etcd, which was raised by Kyle Kingsbury of Jepsen fame.
+The Jepsen tests had shown that reads were not consistent at that time.
+This was because, back then, the etcd reads themselves were not being committed to the raft replication log (no longer the case).
+
+When you use the default isolation level (linearized) for a read in etcd, it actually gets replicated as a command in the raft replication log.
+Only when a _quorum of replicas_ (emphasis on not all) has acknowledged up to the read command in the log, is the read fulfilled back to the client.
+When you supply `WithSerializable()`, the read skips this process and it goes straight to the replicas mvcc store and snapshots.
+
+Let's take a three replica cluster as an example to illustrate what goes wrong in the client-side load-balanced STM scenario.
+In this scenario, only two replicas are required to achieve a quorum (not all three).
+Let's assume the revision of the cluster is currently `3`.
+
+```mermaid
+flowchart LR
+    n1("Leader: Node One (3)")
+    n2("Replica: Node Two (3)")
+    n3("Replica: Node Three (3)")
+    c(Client)
+
+    n1 <---> n2
+    n2 <---> n3
+    n1 <---> n3
+    c -- "Read('keyOne')" --> n1
+```
+
+The first read in a transaction is configured to be linearized and the leader replicates the read as a command written to the log.
+However, it only needs one other replica in the cluster to acknowledge the new revision high-watermark.
+
+```mermaid
+flowchart LR
+    n1("Leader: Node One (4)")
+    n2("Replica: Node Two (4)")
+    n3("Replica: Node Three (3)")
+    c(Client)
+
+    n1 <---> n2
+    n2 <---> n3
+    n1 <---> n3
+    c -- "val from revision 4" ---n1
+
+    style n1 fill:#f9f
+    style n2 fill:#f9f
+```
+
+The client can return from the read with a valid result, whereby the read was committed to the replication log at revision `4`.
+However, in this scenario, only replica nodes one and two have committed up to this newer revision offset.
+
+```mermaid
+flowchart LR
+    n1("Leader: Node One (4)")
+    n2("Replica: Node Two (4)")
+    n3("Replica: Node Three (3)")
+    c(Client)
+
+    n1 <---> n2
+    n2 <---> n3
+    n1 <---> n3
+    c -- "Read('keyTwo', WithRev(4), WithSerializable())" --> n3
+
+    style n1 fill:#f9f
+    style n2 fill:#f9f
+```
+
+Finally, given our third node is still taking time to catch up with the replication log, our client request the second with a revision offset of `4` and only serialized isolation for the requested node.
+In this scenario, node three has still only seen up to revision `3`.
+
+```mermaid
+flowchart LR
+    n1("Leader: Node One (4)")
+    n2("Replica: Node Two (4)")
+    n3("Replica: Node Three (3)")
+    c(Client)
+
+    n1 <---> n2
+    n2 <---> n3
+    n1 <---> n3
+    c -- "mvcc: required revision is a future revision" --- n3
+
+    style n1 fill:#f9f
+    style n2 fill:#f9f
+```
+
+Because our request was marked with serialized isolation, the node attempts to read the key from its own snapshot state at the desired revision.
+However, this node has not yet caught up to this revision. The offset `4` greater than its maximum revision offset `3`.
+Therefore, the node cannot fulfill this request with for given isolation level and it returns an error.
+
+If we had instead left the read request with its default isolation level of linearized, the read would've been proxied to the leader.
+The leader would've then appended the read as a command to the raft replication log and waited for quorum.
+I'm unsure if linearized reads force the requested replica to sync up to the read, thereby allowing it to facilitate the request itself, or if the leader facilitates the read.
+If anyone out there can fill me in here, that would be awesome.
+
+## It Works! It Works!
+
+All I really have to say now is thanks for listening to me ramble on.
+This is mostly a log of my brain catching up with how things work.
+If anything I said here is wrong, then I expect the internet to tell me (go for it).
+
+And thanks [Phil Eaton](https://eatonphil.com/) for all the great content.
+I highly recommend you check out his stuff! I always learn something when I do.
+
+export default ({ children }) => <BlogLayout meta={meta}>{children}</BlogLayout>
