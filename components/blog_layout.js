@@ -17,7 +17,7 @@ const Heading = function(n) {
 }
 
 const A = (props) => (
-  <a className="underline underline-offset-8 decoration-wavy hover:decoration-pink-400/60" {...props}>{props.children}</a>
+  <a className="underline underline-offset-6 decoration-wavy hover:decoration-pink-400/60" {...props}>{props.children}</a>
 )
 
 const BlockQuote = (props) => (
@@ -29,7 +29,7 @@ const OrderedList = (props) => (
 )
 
 const P = (props) => (
-  <p className="mb-4" {...props}>{props.children}</p>
+  <div className="mb-4" {...props}>{props.children}</div>
 )
 
 const Pre = (props) => (

@@ -1,5 +1,6 @@
 import nextMDX from '@next/mdx'
 import rehypeHighlight from "rehype-highlight";
+import rehypeMermaid from 'rehype-mermaid';
 
 const withMDX = nextMDX({
   extension: /\.mdx?$/,
@@ -8,7 +9,7 @@ const withMDX = nextMDX({
     // as the package is ESM only
     // https://github.com/remarkjs/remark-gfm#install
     remarkPlugins: [],
-    rehypePlugins: [rehypeHighlight],
+    rehypePlugins: [rehypeMermaid, rehypeHighlight],
     // If you use `MDXProvider`, uncomment the following line.
     providerImportSource: "@mdx-js/react",
   },
