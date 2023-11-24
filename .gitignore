@@ -1,4 +1,6 @@
-public/
+!public/
+public/*
+!public/images/
 
 *.aes
 

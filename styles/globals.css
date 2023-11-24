@@ -4,7 +4,7 @@
 
 html, body {
   min-height: 100vh;
-  background: rgb(247, 254, 231);
+  background: rgb(23, 26, 33);
 }
 
 pre > code {
@@ -12,7 +12,7 @@ pre > code {
 }
 
 *:not(pre) > code {
-  background: rgba(252, 231, 243, 0.7);
+  background: rgba(49, 70, 73);
   padding: 0.2rem;
   border-radius: .2rem;
 }
@@ -23,4 +23,13 @@ ol > li > p {
 
 .font-mono {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+p {
+  margin: 0 0 1rem 0;
+}
+
+.edgeLabel {
+  background-color: rgb(23, 26, 33) !important;
+  color: rgb(226 232 240) !important;
 }

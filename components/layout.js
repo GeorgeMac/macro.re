@@ -14,7 +14,7 @@ const A = (props) => {
 export default function Layout({ children }) {
   return (
     <>
-      <div className="bg-lime-50 font-sans">
+      <div className="bg-[#171A21] text-slate-200 font-sans">
         <Head>
           <title>GeorgeMac</title>
           <meta name="description" content="Personal site for George MacRorie" />
@@ -26,7 +26,7 @@ export default function Layout({ children }) {
           <div className="flex-row pb-8">
             <h1 className="text-left text-4xl">
               <a href="/">
-                GeorgeMac<span className="text-black/60 underline underline-offset-8 decoration-wavy decoration-pink-400/60">Rorie</span>
+                GeorgeMac<span className="text-[#668586] underline underline-offset-8 decoration-wavy decoration-[#c3979f]">Rorie</span>
               </a>
             </h1>
           </div>
