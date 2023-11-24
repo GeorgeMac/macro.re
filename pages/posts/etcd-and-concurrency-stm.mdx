@@ -1,4 +1,10 @@
 import { BlogLayout } from '../../components/blog_layout'
+import Image from 'next/image';
+
+import stageOne from "../../public/images/etcd-stm/stage-one.svg";
+import stageTwo from "../../public/images/etcd-stm/stage-two.svg";
+import stageThree from "../../public/images/etcd-stm/stage-three.svg";
+import stageFour from "../../public/images/etcd-stm/stage-four.svg";
 
 export const meta = {
   title: 'Etcd and concurrency.STM',
@@ -258,92 +264,38 @@ Let's take a three replica cluster as an example to illustrate what goes wrong i
 In this scenario, only two replicas are required to achieve a quorum (not all three).
 Let's assume the revision of the cluster is currently `3`.
 
-```mermaid
-flowchart LR
-    n1("Leader: Node One (3)")
-    n2("Replica: Node Two (3)")
-    n3("Replica: Node Three (3)")
-    c([Client])
-
-    n1 <---> n2
-    n2 <---> n3
-    n1 <---> n3
-    c -- "Read('keyOne')" --> n1
-
-    linkStyle 0,1,2,3 background-color:#fff,stroke:#E2E8F0
-    classDef nodeDefault fill:#314649,color:#E2E8F0,stroke-width:0
-    class n1,n2,n3,c nodeDefault;
-```
+<Image
+  priority
+  src={stageOne}
+  alt="An example three replica etcd cluster with linearized read"
+/>
 
 The first read in a transaction is configured to be linearized and the leader replicates the read as a command written to the log.
 However, it only needs one other replica in the cluster to acknowledge the new revision high-watermark.
 
-```mermaid
-flowchart LR
-    n1("Leader: Node One (4)")
-    n2("Replica: Node Two (4)")
-    n3("Replica: Node Three (3)")
-    c([Client])
-
-    n1 <---> n2
-    n2 <---> n3
-    n1 <---> n3
-    c -- "val from revision 4" ---n1
-
-    style n1 fill:#f9f
-    style n2 fill:#f9f
-    linkStyle 0,1,2,3 background-color:#fff,stroke:#E2E8F0
-    classDef nodeDefault fill:#314649,color:#E2E8F0,stroke-width:0
-    classDef nodeHigh fill:#c3979f,color:#E2E8F0,stroke-width:0
-    class n3,c nodeDefault;
-    class n1,n2 nodeHigh;
-```
+<Image
+  priority
+  src={stageTwo}
+  alt="An example three replica etcd cluster returning a value and revision"
+/>
 
 The client can return from the read with a valid result, whereby the read was committed to the replication log at revision `4`.
 However, in this scenario, only replica nodes one and two have committed up to this newer revision offset.
 
-```mermaid
-flowchart LR
-    n1("Leader: Node One (4)")
-    n2("Replica: Node Two (4)")
-    n3("Replica: Node Three (3)")
-    c([Client])
-
-    n1 <---> n2
-    n2 <---> n3
-    n1 <---> n3
-    c -- "Read('keyTwo', WithRev(4), WithSerializable())" --> n3
-
-    style n1 fill:#f9f
-    style n2 fill:#f9f
-    linkStyle 0,1,2,3 background-color:#fff,stroke:#E2E8F0
-    classDef nodeDefault fill:#314649,color:#E2E8F0,stroke-width:0
-    classDef nodeHigh fill:#c3979f,color:#E2E8F0,stroke-width:0
-    class n3,c nodeDefault;
-    class n1,n2 nodeHigh;
-```
+<Image
+  priority
+  src={stageThree}
+  alt="An example three replica etcd cluster with serialized read and revision"
+/>
 
 Finally, given our third node is still taking time to catch up with the replication log, our client request the second with a revision offset of `4` and only serialized isolation for the requested node.
 In this scenario, node three has still only seen up to revision `3`.
 
-```mermaid
-flowchart LR
-    n1("Leader: Node One (4)")
-    n2("Replica: Node Two (4)")
-    n3("Replica: Node Three (3)")
-    c([Client])
-
-    n1 <---> n2
-    n2 <---> n3
-    n1 <---> n3
-    c -- "mvcc: required revision is a future revision" --- n3
-
-    linkStyle 0,1,2,3 background-color:#fff,stroke:#E2E8F0
-    classDef nodeDefault fill:#314649,color:#E2E8F0,stroke-width:0
-    classDef nodeHigh fill:#c3979f,color:#E2E8F0,stroke-width:0
-    class n3,c nodeDefault;
-    class n1,n2 nodeHigh;
-```
+<Image
+  priority
+  src={stageFour}
+  alt="An example three replica etcd cluster returning an error"
+/>
 
 Because our request was marked with serialized isolation, the node attempts to read the key from its own snapshot state at the desired revision.
 However, this node has not yet caught up to this revision. The offset `4` greater than its maximum revision offset `3`.
